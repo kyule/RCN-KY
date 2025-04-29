@@ -12,6 +12,7 @@ resultspath<-'/Users/kelsey/Github/RCN-KY/Clean Data/'
 #neonPlantPC <- readRDS(paste0(datapath, 'neonPlantPC.Robj'))
 neonPlantCH <- readRDS(paste0(datapath, 'neonPlantCH.Robj'))
 neonPlantChem <- readRDS(paste0(datapath, 'neonPlantChem.Robj'))
+neonPlantCov <- readRDS(paste0(datapath, 'neonPlantCov.Robj'))
 
 #### Plant PC
 #names(neonPlantPC)
@@ -19,7 +20,7 @@ neonPlantChem <- readRDS(paste0(datapath, 'neonPlantChem.Robj'))
 #pt<-neonPlantPC$apc_perTaxon
 # Upon further review, I think this one is not super relevant to our needs
 
-#### Plant CH
+#### Plant CH = Ash Free Dry Mass of aquatic plants
 names(neonPlantCH)
 ch.var<-data.frame(neonPlantCH$variables_20066)
 ch<-neonPlantCH$apl_clipHarvest
@@ -44,6 +45,7 @@ ch<- ch %>% select(aquaticSiteType,
               habitatType,
               samplerType,
               targetTaxaPresent,
+              chemSubsampleID,
               sampleCollected,
               benthicArea.x,
               sampleDepth,
@@ -106,3 +108,103 @@ plotsum %>%
 # Save clean data
 write.csv(ch,paste0(resultspath,'plantCH_afdm.csv'),row.names=FALSE)
 
+
+
+##### Aquatic Plant chemical properties
+
+names(neonPlantChem$apl_plantExternalLabDataPerSample)
+chem<-full_join(ch,neonPlantChem$apl_plantExternalLabDataPerSample,join_by("chemSubsampleID"=="sampleID"))
+
+#address replicates
+
+drop_replicates<-c()
+
+for (i in 1:nrow(chem)){
+  if(is.na(chem$replicate[i])==FALSE){
+    if(chem$replicate[i]=="2"){
+      reps<-chem[which(chem$chemSubsampleID==chem$chemSubsampleID[i]
+                       & chem$analyte==chem$analyte[i]),]
+      meanConc<-mean(reps$analyteConcentration)
+      chem$analyteConcentration[which(chem$chemSubsampleID==chem$chemSubsampleID[i] 
+                                      & chem$analyte==chem$analyte[i] 
+                                      & chem$replicate=="1")]<-meanConc
+      drop_replicates<-c(drop_replicates,i)
+    }
+  }
+}
+
+chem<-chem[-drop_replicates,]
+
+#analyses done
+unique(chem$analyte)
+
+sumry<-chem %>% 
+  group_by(aquaticSiteType,siteID.x,year,samplingImpractical,
+                       habitatType,samplerType,type,targetTaxaPresent,sampleCollected)  %>% 
+  summarise(samples=length(unique(locationID)),
+                totalAdjBiomass=sum(as.numeric(biomass),na.rm=T),
+                d13C=mean(analyteConcentration[which(analyte=="d13C")],na.rm=T),
+            C=mean(analyteConcentration[which(analyte=="carbon")],na.rm=T),
+            d15N=mean(analyteConcentration[which(analyte=="d15N")],na.rm=T),
+            N=mean(analyteConcentration[which(analyte=="nitrogen")],na.rm=T))
+
+plotsum<-sumry %>% group_by(siteID.x,year,habitatType) %>% summarise(CNratio=mean(C/N,na.rm=T))
+
+
+plotsum %>%
+  ggplot(aes(x = year, y = CNratio, 
+             color = habitatType, 
+             group = interaction(siteID.x, habitatType))) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  geom_blank(aes(y = 0)) +
+  ylab("mean carbon nitrogen ratio per sample") + 
+  xlab("year") +
+  facet_wrap( ~ siteID.x, scales = "free_y")
+
+# Not sure what is most interesting data here and lots of data is missing... 
+
+#### Riparian plant cover
+
+names(neonPlantCov)
+
+cov<-neonPlantCov$rip_percentComposition
+names(cov)
+
+cov<-cov[is.na(cov$samplingImpractical),]
+
+# deal with replicates
+cov<-cov %>% group_by(siteID,startDate,namedLocation,measurementLocation,measurementDirection) %>% summarise(percCov=mean(canopyCoverPercent))
+cov$year<-year(cov$startDate)
+cov$month<-month(cov$startDate)
+
+# summarise down to the relevant level
+
+cov <-cov %>% group_by(siteID,startDate,year,month,namedLocation,measurementLocation) %>% summarise(percCov=mean(percCov))
+cov <-cov %>% group_by(siteID,startDate,year,month,namedLocation) %>% summarise(percCov=mean(percCov))
+cov <-cov %>% group_by(siteID,startDate,year,month) %>% summarise(percCov=mean(percCov))
+cov <-cov %>% group_by(siteID,year,month) %>% summarise(percCov=mean(percCov))
+cov$survey<-paste(cov$year,cov$month,sep="-")
+cov$survey<-ym(cov$survey)
+
+
+sitetypes<-ch %>%
+  distinct(siteID, aquaticSiteType)
+
+cov<-left_join(cov,sitetypes,join_by("siteID"=="siteID"))
+cov<-cov[!is.na(cov$aquaticSiteType),]
+
+cov %>%
+  ggplot(aes(x = survey, y = percCov, 
+             color = siteID, 
+             group = siteID)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  geom_blank(aes(y = 0)) +
+  ylab("mean percent cover per transect") + 
+  xlab("survey") +
+  facet_wrap( ~ siteID, scales = "free_y")
+
+
+
+write.csv(cov,paste0(resultspath,"plantCov.csv"),row.names=FALSE)
