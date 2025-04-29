@@ -205,6 +205,4 @@ cov %>%
   xlab("survey") +
   facet_wrap( ~ siteID, scales = "free_y")
 
-
-
 write.csv(cov,paste0(resultspath,"plantCov.csv"),row.names=FALSE)

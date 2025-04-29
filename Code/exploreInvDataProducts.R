@@ -68,6 +68,7 @@ inv<-inv_full %>% select(siteID.x,
                  ponarDepth,
                  snagLength,
                  snagDiameter,
+                 targetTaxaPresent,
                  acceptedTaxonID,
                  invertebrateLifeStage,
                  sizeClass,
@@ -230,6 +231,12 @@ inv$indivPerArea<-inv$estimatedTotalCount/inv$benthicArea
 #remove rivers
 inv<-inv[which(inv$aquaticSiteType!="river"),]
 
+# if no target taxa found put mass and indivs at 0
+
+inv$totMassPerArea[which(inv$targetTaxaPresent!="Y")]<-0
+inv$indivPerArea[which(inv$targetTaxaPresent!="Y")]<-0
+
+
 # Summarize
 
 sumry <- inv %>% group_by(aquaticSiteType,siteID,habitatType,eventID) %>% summarise(massPerArea=sum(totMassPerArea,na.rm=T),indsPerArea=sum(indivPerArea))
@@ -258,3 +265,4 @@ sumry %>%
   xlab("year") +
   facet_wrap( ~ siteID, scales = "free_y")
 
+write.csv(inv,paste0(resultspath,"invertebrates.csv"),row.names=FALSE)
