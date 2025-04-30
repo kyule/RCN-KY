@@ -29,13 +29,11 @@ field<-field[is.na(field$samplingImpractical),]
 field <- field %>%
   distinct(across(-uid), .keep_all = TRUE)
 
-
 samp <- samp %>% 
   distinct(across(-uid), .keep_all = TRUE)
 
 tax <- tax %>%
   distinct(across(-uid), .keep_all = TRUE)
-
 
 inv<-full_join(field,samp,join_by("sampleID"=="sampleID"))
 
