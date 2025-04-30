@@ -117,11 +117,13 @@ zoo <- zoo %>% select(siteID,
 zoo$aquaticSiteType<-'lake'
 
 # adjusted counts per tow volume
-
 zoo$countPerL<-zoo$adjCountPerBottle/zoo$towsTrapsVolume
 
+
 zoo %>% group_by(eventID) %>% summarise(samps=length(unique(sampleID)))
-#typically 3 samps per event, i think it's ok to ignore as the doubles indicate they should be treated as a composite sample
+#typically 3 samps per event, i think it's ok to ignore the few doubles indicate they should be treated as a composite sample
+
+write.csv(zoo,paste0(resultspath,"zooplankton.csv"),row.names=F)
 
 sumry <- zoo %>% group_by(siteID,collectDate) %>% summarise(count=mean(countPerL,na.rm=T))
 
@@ -136,6 +138,6 @@ sumry %>%
   xlab("collection Date") +
   facet_wrap( ~ siteID, scales = "free_y")
 
-write.csv(zoo,paste0(resultspath,"zooplankton.csv"),row.names=F)
+
 
 
