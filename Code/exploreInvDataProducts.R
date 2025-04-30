@@ -10,8 +10,7 @@ resultspath<-'/Users/kelsey/Github/RCN-KY/Clean Data/'
 # load data
 
 neonInv <- readRDS(paste0(datapath, 'neonInv.Robj'))
-lmRel<-read.csv(paste0(resultspath,'Benke_lengthMass_macroinverts.csv'))
-lmRel2<-read.csv(paste0(resultspath,'Methot_lengthMass_macroinverts.csv'))
+lmRel<-read.csv(paste0(resultspath,'cleanLengthMassRelationships_inverts.csv'))
 taxa<-read.csv(paste0(resultspath,'MacroinvertebrateTaxa.csv'))
 
 names(neonInv)
@@ -87,130 +86,54 @@ inv<-inv[!is.na(inv$siteID.x),]
 #rename columns
 names(inv)<-str_replace(names(inv),"[.]x","")
 
+# find biomass for each inv record
+# first change the neon taxonomy to long form
+taxa$superorder[which(taxa$order %in% c("Actinedida","Trombidiformes"))]<-"Acariformes"
+neontaxa <- taxa %>%
+  pivot_longer(
+    cols = kingdom:subspecies,  # All taxonomic ranks
+    names_to = "rank",
+    values_to = "name"
+  ) %>%
+  select(acceptedTaxonID,taxonID, rank, name)
 
-# add higher level taxon relationship
-upper<-lmRel %>% group_by(UpperTaxon) %>% summarise(b=mean(b),a=mean(a))
-upper$Taxon<-upper$UpperTaxon
-upper<-upper[,c(1,4,2,3)]
-lmRel<-rbind(lmRel,upper)
-lmRel<- lmRel %>% distinct()
+neontaxa<-neontaxa[!is.na(neontaxa$name),]
+neontaxa<-neontaxa[-which(neontaxa$name==""),]
+neontaxa<-neontaxa[nrow(neontaxa):1, ]
 
-# find taxon for relationship
 
+#which taxa are found
 taxaFound<-data.frame(taxa=unique(inv$acceptedTaxonID),a=NA,b=NA)
 
-bad_matches <- c()  # create an empty vector
-
 for (i in 1:nrow(taxaFound)){
-  print(i)
-  neontax <- taxa[which(taxa$taxonID == taxaFound$taxa[i]), ]
-  if (nrow(neontax) == 1){
-    if (neontax$family %in% lmRel$Taxon){
-      matched_rows <- which(lmRel$Taxon == neontax$family)
-      if (length(matched_rows) == 1){
-        taxaFound$a[i] <- lmRel$a[matched_rows]
-        taxaFound$b[i] <- lmRel$b[matched_rows]
-      } else {
-        bad_matches <- c(bad_matches, i)  # record problematic i
+    print(i)
+    ntax <- neontaxa[which(neontaxa$acceptedTaxonID == taxaFound$taxa[i]), ]
+    rels<-lmRel[which(lmRel$Taxon %in% ntax$name),]
+    if (nrow(rels>=1)){
+      taxaFound$a[i]<-rels$a[1]
+      taxaFound$b[i]<-rels$b[1]
+    }
+    else {
+      ntax <- neontaxa[which(neontaxa$taxonID == taxaFound$taxa[i]), ]
+      rels<-lmRel[which(lmRel$Taxon %in% ntax$name),]
+      if (nrow(rels>=1)){
+        taxaFound$a[i]<-rels$a[1]
+        taxaFound$b[i]<-rels$b[1]
+      }
+      else {
+        ntax <- neontaxa[which(neontaxa$acceptedTaxonID == taxaFound$taxa[i]), ]
+        rels<-lmRel[which(lmRel$UpperTaxon %in% ntax$name),]
+        if (nrow(rels>=1)){
+          taxaFound$a[i]<-rels$a[1]
+          taxaFound$b[i]<-rels$b[1]
+        }
       }
     }
-    else if (neontax$order %in% lmRel$Taxon){
-      matched_rows <- which(lmRel$Taxon == neontax$order)
-      if (length(matched_rows) == 1){
-        taxaFound$a[i] <- lmRel$a[matched_rows]
-        taxaFound$b[i] <- lmRel$b[matched_rows]
-      } else {
-        bad_matches <- c(bad_matches, i)
-      }
-    }
-    else if (neontax$class %in% lmRel$Taxon){
-      matched_rows <- which(lmRel$Taxon == neontax$class)
-      if (length(matched_rows) == 1){
-        taxaFound$a[i] <- lmRel$a[matched_rows]
-        taxaFound$b[i] <- lmRel$b[matched_rows]
-      } else {
-        bad_matches <- c(bad_matches, i)
-      }
-    }
-    else if (neontax$subphylum %in% lmRel$Taxon){
-      matched_rows <- which(lmRel$Taxon == neontax$subphylum)
-      if (length(matched_rows) == 1){
-        taxaFound$a[i] <- lmRel$a[matched_rows]
-        taxaFound$b[i] <- lmRel$b[matched_rows]
-      } else {
-        bad_matches <- c(bad_matches, i)
-      }
-    }
-    else if (neontax$family %in% lmRel2$Taxon){
-      matched_rows <- which(lmRel2$Taxon == neontax$family)
-      if (length(matched_rows) == 1){
-        taxaFound$a[i] <- lmRel2$a[matched_rows]
-        taxaFound$b[i] <- lmRel2$b[matched_rows]
-      } else {
-        bad_matches <- c(bad_matches, i)
-      }
-    }
-    else if (neontax$subclass %in% lmRel2$Taxon){
-      matched_rows <- which(lmRel2$Taxon == neontax$subclass)
-      if (length(matched_rows) == 1){
-        taxaFound$a[i] <- lmRel2$a[matched_rows]
-        taxaFound$b[i] <- lmRel2$b[matched_rows]
-      } else {
-        bad_matches <- c(bad_matches, i)
-      }
-    }
-    else if (neontax$class %in% lmRel2$Taxon){
-      matched_rows <- which(lmRel2$Taxon == neontax$class)
-      if (length(matched_rows) == 1){
-        taxaFound$a[i] <- lmRel2$a[matched_rows]
-        taxaFound$b[i] <- lmRel2$b[matched_rows]
-      } else {
-        bad_matches <- c(bad_matches, i)
-      }
-    }
-    else if (neontax$class %in% lmRel2$Taxon){
-      matched_rows <- which(lmRel2$Taxon == neontax$class)
-      if (length(matched_rows) == 1){
-        taxaFound$a[i] <- lmRel2$a[matched_rows]
-        taxaFound$b[i] <- lmRel2$b[matched_rows]
-      } else {
-        bad_matches <- c(bad_matches, i)
-      }
-    }
-    else if (neontax$phylum %in% lmRel2$Taxon){
-      matched_rows <- which(lmRel2$Taxon == neontax$phylum)
-      if (length(matched_rows) == 1){
-        taxaFound$a[i] <- lmRel2$a[matched_rows]
-        taxaFound$b[i] <- lmRel2$b[matched_rows]
-      } else {
-        bad_matches <- c(bad_matches, i)
-      }
-    }
-  }
 }
 
-#investigate any bad matches
-taxaFound[bad_matches,] # none found
+notFound<-taxa[which(taxa$acceptedTaxonID %in% taxaFound$taxa[is.na(taxaFound$a)]),]
 
-# about 3/4 of them are found
-
-notFound<-taxa[which(taxa$taxonID %in% taxaFound$taxa[is.na(taxaFound$a)]),]
-
-#roundworms and ribbonworms use scaling = van den Hoogen, J., Geisen, S., Routh, D., Ferris, H., Traunspurger, W., Wardle, D. A., de Goede, R. G. M., Adams, B. J., Ahmad, W., Andriuzzi, W. S., Bardgett, R. D., Bonkowski, M., Campos-Herrera, R., Cares, J. E., Caruso, T., de Brito Caixeta, L., Chen, X., Costa, S. R., Creamer, R., ... Crowther, T. W. (2019). Soil nematode abundance and functional group composition at a global scale. Nature, 572(7768), 194–198. https://doi.org/10.1038/s41586-019-1418-6
-
-taxaFound$a[which(taxaFound$taxa %in% c("NEMSP1","NEMSP","NEMSP2","PROSP37"))]<-0.479
-taxaFound$b[which(taxaFound$taxa %in% c("NEMSP1","NEMSP","NEMSP2","PROSP37"))]<-2.56
-
-# for other arthropods and tardigrades use scaling from Ganihar (1997): “Biomass estimates of terrestrial arthropods based on body length.” Journal of Biosciences, 22(2), 219–224.
-
-notFoundarth<-notFound$acceptedTaxonID[which(notFound$phylum %in% c("Arthropoda","Tardigrada"))]
-taxaFound$a[which(taxaFound$taxa %in% notFoundarth)]<-0.055
-taxaFound$b[which(taxaFound$taxa %in% notFoundarth)]<-2.62
-
-# how many missing now
-notFound<-taxa[which(taxa$taxonID %in% taxaFound$taxa[is.na(taxaFound$a)]),]
-
-# still missing cnidaria, bryozoa, and flatworms for now
+# leaving out Bryozoa, cnidaria, roundworms, flatworms (14 total taxa)
 
 # calculate the biomass
 # add  mass based on size class relationships
@@ -225,21 +148,19 @@ for (i in 1:nrow(inv)){
 }
 
 inv$totMass<-inv$estimatedTotalCount*inv$mass
-inv$totMassPerArea<-inv$totMass/inv$benthicArea
-inv$indivPerArea<-inv$estimatedTotalCount/inv$benthicArea
 
 #remove rivers
 inv<-inv[which(inv$aquaticSiteType!="river"),]
 
 # if no target taxa found put mass and indivs at 0
 
-inv$totMassPerArea[which(inv$targetTaxaPresent!="Y")]<-0
-inv$indivPerArea[which(inv$targetTaxaPresent!="Y")]<-0
+inv$totMass[which(inv$targetTaxaPresent!="Y")]<-0
+inv$estimatedTotalCount[which(inv$targetTaxaPresent!="Y")]<-0
 
 
 # Summarize
 
-sumry <- inv %>% group_by(aquaticSiteType,siteID,habitatType,eventID) %>% summarise(massPerArea=sum(totMassPerArea,na.rm=T),indsPerArea=sum(indivPerArea))
+sumry <- inv %>% group_by(aquaticSiteType,siteID,habitatType,eventID) %>% summarise(massPerArea=sum(totMass,na.rm=T)/sum(benthicArea,na.rm=T),indsPerArea=sum(estimatedTotalCount)/sum(benthicArea,na.rm=T))
 sumry <- sumry %>%
   mutate(year = str_sub(eventID, 6, 9))
 
