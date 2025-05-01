@@ -124,4 +124,29 @@ inds<-inds[!is.na(inds$uid),]
 
 #use chemically preserved samples for quantitative density calculations
 
-inds<-inds[which()]
+inds<-inds[which(inds$algalParameterUnit=="cellsPerBottle"),]
+inds$algalParameterValue[which(inds$targetTaxaPresent=="N")]<-0
+
+inds$countPermL<-inds$algalParameterValue/(inds$labSampleVolume+inds$preservativeVolume)
+inds$countPermL[which(inds$algalSampleType!='phytoplankton')]<-
+  inds$countPermL[which(inds$algalSampleType!='phytoplankton')]*
+  inds$fieldSampleVolume[which(inds$algalSampleType!='phytoplankton')]/inds$benthicArea[which(inds$algalSampleType!='phytoplankton')]
+
+inds$algalSampleType[which(inds$algalSampleType=="epilithon_largeSubstrate")]<-"epilithon"
+sumry <- inds %>% group_by(siteID.x,collectDate.x,algalSampleType,habitatType) %>% summarise(samps=length(sampleID),count=sum(countPermL,na.rm=T))
+
+sumry %>%
+  ggplot(aes(x = collectDate.x, y = count, 
+             color = algalSampleType,
+             group = algalSampleType)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  geom_blank(aes(y = 0)) +
+  ylab("count per mL") + 
+  xlab("collection Date") +
+  facet_wrap( ~ siteID.x, scales = "free_y")
+
+# chemistry
+
+
+
