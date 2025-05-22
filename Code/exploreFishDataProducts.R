@@ -19,28 +19,15 @@ neonFish <- readRDS(paste0(datapath, 'neonFish.Robj'))
 
 names(neonFish)
 
-field<-neonFish$fsh_fieldData
-names(field)
+fishpass<-left_join(perfish,perpass,join_by('eventID'='eventID'))
 
-perpass<-neonFish$fsh_perFish
-names(perpass)
 
-bulk<-neonFish$fsh_bulkCount
-names(bulk)
 
-perpass$year<-year(perpass$boutEndDate)
-perpass$condition<-perpass$fishTotalLength/perpass$fishWeight
-perpass %>% group_by(scientificName,siteID,year,fishLifeStage) %>% summarise(count=length(unique(uid)),condition=mean(condition,na.rm=TRUE))->sumry
 
-sumry %>%
-  ggplot(aes(x = year, y = condition, 
-             color = scientificName,
-             group = siteID)) +
-  geom_point() +
-  geom_smooth(method = "lm", se = FALSE) +
-  geom_blank(aes(y = 0)) +
-  ylab("condition") + 
-  xlab("collection Date") +
-  facet_wrap( ~ siteID, scales = "free_y")
+perfish$year<-year(perfish$boutEndDate)
+perfish$condition<-perfish$fishWeight/perfish$fishTotalLength
+perfish %>% group_by(scientificName,siteID,year,fishLifeStage) %>% summarise(count=length(unique(uid)),condition=mean(condition,na.rm=TRUE))->sumry
 
-                                                               
+sumry.common_adult <- sumry %>%
+  filter(fishLifeStage=='adult',count>=10) 
+  
