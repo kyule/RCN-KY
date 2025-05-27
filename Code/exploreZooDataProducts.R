@@ -128,6 +128,7 @@ write.csv(zoo,paste0(resultspath,"zooplankton.csv"),row.names=F)
 
 sumry <- zoo %>% group_by(siteID,collectDate) %>% summarise(count=mean(countPerL,na.rm=T))
 
+
 sumry %>%
   ggplot(aes(x = collectDate, y = count, 
              color = siteID,
@@ -138,6 +139,8 @@ sumry %>%
   ylab("count per L") + 
   xlab("collection Date") +
   facet_wrap( ~ siteID, scales = "free_y")
+
+
 
 
 
