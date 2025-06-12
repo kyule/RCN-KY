@@ -1,3 +1,7 @@
+
+############ DO NOT USE THE RELEASE DATA FOR ZOOPLANKTON, SEE DATA NOTIFICATION
+
+
 library(dplyr)
 library(stringr)
 library(lubridate)
@@ -41,10 +45,6 @@ zoo <- full_join(field,samp,join_by("sampleID"=="sampleID"))
 #check dupes
 dupes<-zoo[which(zoo$uid.x %in% zoo$uid.x[duplicated(zoo$uid.x)]),]
 
-library(dplyr)
-library(purrr)
-library(stringr)
-library(tibble)
 
 find_flagged_uidy <- function(df_group) {
   if (nrow(df_group) < 2) return(NULL)
@@ -98,7 +98,13 @@ zoo<-rbind(zoo,dupes_filtered)
 
 # now join to tax 
 
+############ DO NOT USE THE RELEASE DATA FOR ZOOPLANKTON, SEE DATA NOTIFICATION
+
+
+
+
 zoo <- full_join(zoo,tax,join_by("sampleID"=="sampleID"))
+############ DO NOT USE THE RELEASE DATA FOR ZOOPLANKTON, SEE DATA NOTIFICATION
 
 zoo <- zoo %>% select(siteID,
                       namedLocation,
@@ -127,6 +133,7 @@ zoo %>% group_by(eventID) %>% summarise(samps=length(unique(sampleID)))
 write.csv(zoo,paste0(resultspath,"zooplankton.csv"),row.names=F)
 
 sumry <- zoo %>% group_by(siteID,collectDate) %>% summarise(count=mean(countPerL,na.rm=T))
+############ DO NOT USE THE RELEASE DATA FOR ZOOPLANKTON, SEE DATA NOTIFICATION
 
 
 sumry %>%
